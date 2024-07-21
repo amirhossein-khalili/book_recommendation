@@ -11,7 +11,7 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "phone_number", "full_name")
+        fields = ("email", "phone_number", "user_name")
 
     def clean_password2(self):
         cd = self.cleaned_data
@@ -34,7 +34,7 @@ class UserChangeForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "phone_number", "full_name", "password", "last_login")
+        fields = ("email", "phone_number", "user_name", "password", "last_login")
 
 
 class UserChangeForm(forms.ModelForm):
@@ -44,4 +44,4 @@ class UserChangeForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "phone_number", "full_name", "password", "last_login")
+        fields = ("email", "phone_number", "user_name", "password", "last_login")
