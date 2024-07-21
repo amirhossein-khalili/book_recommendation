@@ -11,15 +11,22 @@ from .serializers import BookSerializer, ReviewSerializer
 
 class BookListView(APIView):
     """
-    This API will return a list of all books.
+    This API will return a list of all books along with the user's rating if available.
     """
 
     # permission_classes = [IsAuthenticated]
 
     def get(self, request):
-
+        user_id = request.user.id
         with connection.cursor() as cursor:
-            cursor.execute("SELECT id, title, author, genre FROM book_book")
+            cursor.execute(
+                """
+                SELECT b.id, b.title, b.author, b.genre, r.rating
+                FROM book_book b
+                LEFT JOIN book_review r ON b.id = r.book_id AND r.user_id = %s
+                    """,
+                [user_id],
+            )
             books = cursor.fetchall()
 
         books_list = [self.format_book(book) for book in books]
@@ -32,6 +39,7 @@ class BookListView(APIView):
             "title": book[1],
             "author": book[2],
             "genre": book[3],
+            "user_rating": book[4],
         }
 
 
