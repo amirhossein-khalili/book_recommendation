@@ -60,12 +60,12 @@ class SignupStepTwoSerializer(serializers.Serializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, str]:
-        phone_number = attrs.get("phone_number")
+        user_name = attrs.get("user_name")
         password = attrs.get("password")
 
         user = authenticate(
             request=self.context.get("request"),
-            phone_number=phone_number,
+            user_name=user_name,
             password=password,
         )
 
