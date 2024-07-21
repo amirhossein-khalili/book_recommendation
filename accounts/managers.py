@@ -1,33 +1,31 @@
-from django.contrib.auth.models import BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.db import models
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone_number, email, full_name, user_name, password):
-
-        if not phone_number:
-            raise ValueError("user must have phone number")
-
+    def create_user(self, phone_number, email, user_name, password=None):
         if not email:
-            raise ValueError("user must have email")
+            raise ValueError("The Email field must be set")
+        if not phone_number:
+            raise ValueError("The phone_number field must be set")
 
-        if not full_name:
-            raise ValueError("user must have full name")
-
-        if not user_name:
-            raise ValueError("user must have user name")
-
+        email = self.normalize_email(email)
         user = self.model(
             phone_number=phone_number,
-            email=self.normalize_email(email),
-            full_name=full_name,
+            email=email,
+            user_name=user_name,
         )
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, phone_number, email, full_name, user_name, password):
-        user = self.create_user(phone_number, email, full_name, user_name, password)
+    def create_superuser(self, phone_number, email, user_name, password=None):
+        user = self.create_user(
+            phone_number=phone_number,
+            email=email,
+            user_name=user_name,
+            password=password,
+        )
         user.is_admin = True
-        user.is_superuser = True
         user.save(using=self._db)
         return user
