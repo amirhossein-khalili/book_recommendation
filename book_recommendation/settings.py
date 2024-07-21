@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 APPEND_SLASH = False
 
 
-# AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "accounts.User"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
