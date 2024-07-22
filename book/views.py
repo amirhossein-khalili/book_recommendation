@@ -7,7 +7,12 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from utils import combine_dict_items, extract_values_list_dicts, remove_duplicates
+from utils import (
+    combine_dict_items,
+    extract_values_list_dicts,
+    get_keys_with_pattern,
+    remove_duplicates,
+)
 
 from .models import Book, Review
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
@@ -324,8 +329,10 @@ class BookSuggestView(APIView):
 
     def get_list_books_from_cache(self, user_id):
         recom_perf = cache.get(f"RecommendationPreference_{user_id}")
-        book_list = combine_dict_items(recom_perf)
-        return book_list
+        if recom_perf:
+            book_list = combine_dict_items(recom_perf)
+            return book_list
+        return None
 
     def fetch_books_from_service(self, service_name, user_id, num_items=10):
         service = BookRecommendationServiceFactory.create_service(service_name)
