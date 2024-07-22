@@ -11,7 +11,7 @@ class BookSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "author", "genre", "publish_date"]
 
 
-class ReviewSerializer(serializers.ModelSerializer):
+class ReviewAddSerializer(serializers.ModelSerializer):
 
     user = serializers.IntegerField(write_only=True)
 
@@ -52,3 +52,17 @@ class ReviewSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User has already reviewed this book")
 
         return data
+
+
+class ReviewUpdateSerializer(serializers.ModelSerializer):
+
+    user = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Review
+        fields = ["id", "rating", "user"]
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5")
+        return value

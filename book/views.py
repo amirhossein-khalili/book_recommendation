@@ -5,8 +5,13 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from permissions import IsOwnerReadOnly
+
 from .models import Book, Review
-from .serializers import BookSerializer, ReviewSerializer
+from .permissions import IsOwner
+from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
+
+# from permissions import IsOwner
 
 
 class BookListView(APIView):
@@ -105,7 +110,7 @@ class BookDetailView(APIView):
 
 
 class ReviewAddView(APIView):
-    serializer_class = ReviewSerializer
+    serializer_class = ReviewAddSerializer
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -132,27 +137,103 @@ class ReviewAddView(APIView):
 
 
 class ReviewUpdateView(APIView):
-    def put(self, request, pk):
-        review_text = request.data.get("review_text")
+    serializer_class = ReviewUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        pk = kwargs.get("pk")
         rating = request.data.get("rating")
+        requested_user_id = request.user.id
+
+        data = request.data.copy()
+        data["user"] = request.user.id
+        ser_data = self.serializer_class(data=data)
+
+        if ser_data.is_valid():
+
+            user_review = self.get_user_review(pk)
+            if user_review is None:
+                return Response(
+                    {"message": "Review not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if user_review != requested_user_id:
+                return Response(
+                    {"message": "You do not have access to change this review"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE book_review SET rating=%s WHERE id=%s",
+                    [rating, pk],
+                )
+
+            return Response(
+                {"message": "Review updated successfully"}, status=status.HTTP_200_OK
+            )
+
+        return Response(ser_data.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_user_review(self, pk):
         with connection.cursor() as cursor:
             cursor.execute(
-                "UPDATE book_review SET review_text=%s, rating=%s WHERE id=%s",
-                [review_text, rating, pk],
+                "SELECT user_id FROM book_review WHERE id=%s",
+                [pk],
             )
-        return Response(
-            {"message": "Review updated successfully"}, status=status.HTTP_200_OK
-        )
+            review = cursor.fetchone()
+            if review is None:
+                return None
+            user_review = review[0]
+        return user_review
 
 
 class ReviewDeleteView(APIView):
-    def delete(self, request, pk):
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        pk = kwargs.get("pk")
+        requested_user_id = request.user.id
+
+        data = request.data.copy()
+        data["user"] = request.user.id
+
+        user_review = self.get_user_review(pk)
+        if user_review is None:
+            return Response(
+                {"message": "Review not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user_review != requested_user_id:
+            return Response(
+                {"message": "You do not have access to delete this review"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM book_review WHERE id=%s", [pk])
+            cursor.execute(
+                "DELETE FROM book_review WHERE id=%s",
+                [pk],
+            )
+
         return Response(
-            {"message": "Review deleted successfully"},
-            status=status.HTTP_204_NO_CONTENT,
+            {"message": "Review Deleted successfully"}, status=status.HTTP_200_OK
         )
+
+    def get_user_review(self, pk):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_id FROM book_review WHERE id=%s",
+                [pk],
+            )
+            review = cursor.fetchone()
+            if review is None:
+                return None
+            user_review = review[0]
+        return user_review
 
 
 class BookRecommendView(APIView):
