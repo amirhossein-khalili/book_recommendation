@@ -30,3 +30,13 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review of {self.book_id} by {self.user_id}: {self.rating}"
+
+
+class UserRecommendationPreference(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    genre_weight = models.FloatField(default=0)
+    author_weight = models.FloatField(default=0)
+    similar_user_weight = models.FloatField(default=0)
+
+    def __str__(self):
+        return f"Preferences for {self.user.user_name}"
