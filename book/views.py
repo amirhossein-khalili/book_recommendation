@@ -1,14 +1,14 @@
 # book/views.py
 from django.db import connection
-from rest_framework import status
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Book, Review
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
-
-# from permissions import IsOwner
+from .services import BookRecommendationServiceFactory
 
 
 class BookListView(APIView):
@@ -285,3 +285,21 @@ class BookRecommendView(APIView):
             for book in books
         ]
         return Response(books_list, status=status.HTTP_200_OK)
+
+
+class BookSuggestView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+
+        user_id = request.user.id
+        num_items = request.query_params.get("num_items", 10)
+
+        service = BookRecommendationServiceFactory.create_service("genre")
+        books_list = service.get_recommended_books(user_id, num_items)
+
+        if not books_list:
+            return Response({"message": "No suggestions available."})
+
+        return Response(books_list)
