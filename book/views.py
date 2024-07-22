@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from utils import remove_duplicates
+from utils import extract_values_list_dicts, remove_duplicates
 
 from .models import Book, Review
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
@@ -281,22 +281,20 @@ class BookSuggestView(APIView):
     def get(self, request, *args, **kwargs):
 
         user_id = request.user.id
+        cache_books = self.get_list_books_from_cache(user_id)
+        if cache_books:
 
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM book_userrecommendationpreference WHERE user_id=%s",
-                [user_id],
-            )
-            preference = cursor.fetchone()
+            unique_all_books = remove_duplicates(cache_books)
+            return Response(unique_all_books)
+
+        preference = self.get_user_preference(user_id)
 
         all_books = []
         recom_perf = {}
         if not preference:
-            for service in self.list_services:
-                num_items = 10
-                service = BookRecommendationServiceFactory.create_service(service)
-                books_list = service.get_recommended_books(user_id, num_items)
-                recom_perf[service] = books_list
+            for service_name in self.list_services:
+                books_list = self.fetch_books_from_service(service_name, user_id)
+                recom_perf[service_name] = books_list
                 all_books = all_books + books_list
 
         self.save_list_books(recom_perf, user_id)
@@ -312,3 +310,27 @@ class BookSuggestView(APIView):
             recom_perf,
             each_day_seconds * 3,
         )
+
+    def get_list_books_from_cache(self, user_id):
+        recom_perf = cache.get(f"RecommendationPreference_{user_id}")
+        book_list = []
+
+        if recom_perf:
+            for k, v in recom_perf.items():
+                book_list.append(v)
+
+        return book_list[0]
+
+    def fetch_books_from_service(self, service_name, user_id, num_items=10):
+        service = BookRecommendationServiceFactory.create_service(service_name)
+        books_list = service.get_recommended_books(user_id, num_items)
+
+        return books_list
+
+    def get_user_preference(self, user_id):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM book_userrecommendationpreference WHERE user_id=%s",
+                [user_id],
+            )
+            preference = cursor.fetchone()
