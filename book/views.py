@@ -1,10 +1,13 @@
 # book/views.py
+from django.core.cache import cache
 from django.db import connection
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from utils import remove_duplicates
 
 from .models import Book, Review
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
@@ -290,16 +293,39 @@ class BookRecommendView(APIView):
 class BookSuggestView(APIView):
 
     permission_classes = [IsAuthenticated]
+    serializer_class = ReviewAddSerializer
+    list_services = ["genre", "author", "similar_user"]
 
     def get(self, request, *args, **kwargs):
 
         user_id = request.user.id
-        num_items = request.query_params.get("num_items", 10)
 
-        service = BookRecommendationServiceFactory.create_service("genre")
-        books_list = service.get_recommended_books(user_id, num_items)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM book_userrecommendationpreference WHERE user_id=%s",
+                [user_id],
+            )
+            preference = cursor.fetchone()
 
-        if not books_list:
-            return Response({"message": "No suggestions available."})
+        all_books = []
+        recom_perf = {}
+        if not preference:
+            for service in self.list_services:
+                num_items = 10
+                service = BookRecommendationServiceFactory.create_service(service)
+                books_list = service.get_recommended_books(user_id, num_items)
+                recom_perf[service] = books_list
+                all_books = all_books + books_list
 
-        return Response(books_list)
+        self.save_list_books(recom_perf, user_id)
+
+        return Response(all_books)
+
+    def save_list_books(self, recom_perf, user_id):
+        each_day_seconds = 86400
+
+        cache.set(
+            f"RecommendationPreference_{user_id}",
+            recom_perf,
+            each_day_seconds * 3,
+        )
