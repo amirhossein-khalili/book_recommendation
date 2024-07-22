@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from utils import extract_values_list_dicts, remove_duplicates
+from utils import combine_dict_items, extract_values_list_dicts, remove_duplicates
 
 from .models import Book, Review
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
@@ -279,14 +279,19 @@ class BookSuggestView(APIView):
     list_services = ["genre", "author", "similar_user"]
 
     def get(self, request, *args, **kwargs):
-
         user_id = request.user.id
+        # ----------------------------------------------------------------
+        # check items in the cache
+        # ----------------------------------------------------------------
+
         cache_books = self.get_list_books_from_cache(user_id)
         if cache_books:
-
             unique_all_books = remove_duplicates(cache_books)
             return Response(unique_all_books)
 
+        # ----------------------------------------------------------------
+        # check user preference and return suggestion list according it
+        # ----------------------------------------------------------------
         preference = self.get_user_preference(user_id)
 
         all_books = []
@@ -297,10 +302,16 @@ class BookSuggestView(APIView):
                 recom_perf[service_name] = books_list
                 all_books = all_books + books_list
 
+        # ----------------------------------------------------------------
+        # save the data of suggestion list in the cache
+        # ----------------------------------------------------------------
         self.save_list_books(recom_perf, user_id)
 
+        # ----------------------------------------------------------------
+        # return unique items of books list
+        # ----------------------------------------------------------------
         unique_all_books = remove_duplicates(all_books)
-        return Response(unique_all_books)
+        return Response(unique_all_books, status=status.HTTP_200_OK)
 
     def save_list_books(self, recom_perf, user_id):
         each_day_seconds = 86400
@@ -313,13 +324,8 @@ class BookSuggestView(APIView):
 
     def get_list_books_from_cache(self, user_id):
         recom_perf = cache.get(f"RecommendationPreference_{user_id}")
-        book_list = []
-
-        if recom_perf:
-            for k, v in recom_perf.items():
-                book_list.append(v)
-
-        return book_list[0]
+        book_list = combine_dict_items(recom_perf)
+        return book_list
 
     def fetch_books_from_service(self, service_name, user_id, num_items=10):
         service = BookRecommendationServiceFactory.create_service(service_name)
