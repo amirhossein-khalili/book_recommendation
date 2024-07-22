@@ -10,10 +10,8 @@ app_name = "book"
 # ----------------------------------------------------------------
 book_urls = [
     path("list/", views.BookListView.as_view(), name="book-list"),
-    path("<int:pk>/", views.BookDetailView.as_view(), name="book-detail"),
-    path(
-        "genre/<str:genre>/", views.BookRecommendView.as_view(), name="book-recommend"
-    ),
+    # path("<int:pk>/", views.BookDetailView.as_view(), name="book-detail"),
+    path("genre/<str:genre>/", views.BookFilterView.as_view(), name="book-filter"),
 ]
 
 # ----------------------------------------------------------------

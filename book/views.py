@@ -11,20 +11,25 @@ from .serializers import BookSerializer, ReviewSerializer
 
 class BookListView(APIView):
     """
-    This API will return a list of all books along with the user's rating if available.
+    This API will return a list of all books along with the user's rating and the average rating of all users.
     """
 
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user_id = request.user.id
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT b.id, b.title, b.author, b.genre, r.rating
+                SELECT b.id, b.title, b.author, b.genre, r.rating as user_rating, avg_r.avg_rating
                 FROM book_book b
                 LEFT JOIN book_review r ON b.id = r.book_id AND r.user_id = %s
-                    """,
+                LEFT JOIN (
+                    SELECT book_id, AVG(rating) as avg_rating
+                    FROM book_review
+                    GROUP BY book_id
+                ) avg_r ON b.id = avg_r.book_id
+                """,
                 [user_id],
             )
             books = cursor.fetchall()
@@ -40,6 +45,29 @@ class BookListView(APIView):
             "author": book[2],
             "genre": book[3],
             "user_rating": book[4],
+            "average_rating": book[5],
+        }
+
+
+class BookFilterView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        genre = kwargs.get("genre")
+
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT * FROM book_book WHERE genre=%s""", [genre])
+            books = cursor.fetchall()
+
+        books_list = [self.format_book(book) for book in books]
+
+        return Response(books_list, status=status.HTTP_200_OK)
+
+    def format_book(self, book):
+        return {
+            "id": book[0],
+            "title": book[1],
+            "author": book[2],
+            "genre": book[3],
         }
 
 
