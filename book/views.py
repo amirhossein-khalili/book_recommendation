@@ -71,6 +71,22 @@ class BookFilterView(APIView):
         }
 
 
+class BookGenreListView(APIView):
+    """
+    This API will give you a list of genres of the books.
+    """
+
+    def get(self, request, *args, **kwargs):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT DISTINCT genre FROM book_book")
+            genres = cursor.fetchall()
+
+        # Flatten the list of tuples into a single list
+        genre_list = [genre[0] for genre in genres]
+
+        return Response(genre_list, status=status.HTTP_200_OK)
+
+
 class BookDetailView(APIView):
     def get(self, request, pk):
         with connection.cursor() as cursor:
