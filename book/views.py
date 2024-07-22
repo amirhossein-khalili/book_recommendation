@@ -236,6 +236,42 @@ class ReviewDeleteView(APIView):
         return user_review
 
 
+class ReviewListView(APIView):
+    """
+    This API will return a list of all reviews belong to the user.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_id = request.user.id
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT  r.id , r.rating , r.book_id ,b.title , b.author , b.genre
+                FROM book_review as r
+                LEFT JOIN book_book b ON b.id = r.book_id
+                WHERE (user_id = %s);
+                """,
+                [user_id],
+            )
+            reviews = cursor.fetchall()
+
+        reviews_list = [self.format_review(review) for review in reviews]
+
+        return Response(reviews_list, status=status.HTTP_200_OK)
+
+    def format_review(self, review):
+        return {
+            "id": review[0],
+            "rating": review[1],
+            "book_id": review[2],
+            "title": review[3],
+            "author": review[4],
+            "genre": review[5],
+        }
+
+
 class BookRecommendView(APIView):
     def get(self, request, genre):
         with connection.cursor() as cursor:

@@ -22,6 +22,7 @@ review_urls = [
     path("add/", views.ReviewAddView.as_view(), name="review-add"),
     path("update/<int:pk>/", views.ReviewUpdateView.as_view(), name="review-update"),
     path("delete/<int:pk>/", views.ReviewDeleteView.as_view(), name="review-delete"),
+    path("list/", views.ReviewListView.as_view(), name="review-list"),
 ]
 
 urlpatterns = [
