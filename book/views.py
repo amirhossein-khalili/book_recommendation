@@ -272,24 +272,6 @@ class ReviewListView(APIView):
         }
 
 
-class BookRecommendView(APIView):
-    def get(self, request, genre):
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM book_book WHERE genre=%s", [genre])
-            books = cursor.fetchall()
-        books_list = [
-            {
-                "id": book[0],
-                "title": book[1],
-                "author": book[2],
-                "genre": book[3],
-                "publish_date": book[4],
-            }
-            for book in books
-        ]
-        return Response(books_list, status=status.HTTP_200_OK)
-
-
 class BookSuggestView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -319,7 +301,8 @@ class BookSuggestView(APIView):
 
         self.save_list_books(recom_perf, user_id)
 
-        return Response(all_books)
+        unique_all_books = remove_duplicates(all_books)
+        return Response(unique_all_books)
 
     def save_list_books(self, recom_perf, user_id):
         each_day_seconds = 86400
