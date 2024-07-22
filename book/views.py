@@ -105,18 +105,30 @@ class BookDetailView(APIView):
 
 
 class ReviewAddView(APIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
-        book_id = request.data.get("book")
-        review_text = request.data.get("review_text")
-        rating = request.data.get("rating")
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO book_review (book_id, review_text, rating) VALUES (%s, %s, %s)",
-                [book_id, review_text, rating],
+        data = request.data.copy()
+        data["user"] = request.user.id
+        ser_data = self.serializer_class(data=data)
+
+        if ser_data.is_valid():
+            book_id = data.get("book")
+            user_id = data.get("user")
+            rating = data.get("rating")
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO book_review (book_id , user_id , rating) VALUES (%s, %s, %s)",
+                    [book_id, user_id, rating],
+                )
+
+            return Response(
+                {"message": "Review added successfully"}, status=status.HTTP_201_CREATED
             )
-        return Response(
-            {"message": "Review added successfully"}, status=status.HTTP_201_CREATED
-        )
+
+        return Response(ser_data.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ReviewUpdateView(APIView):
