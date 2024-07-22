@@ -5,10 +5,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from permissions import IsOwnerReadOnly
-
 from .models import Book, Review
-from .permissions import IsOwner
 from .serializers import BookSerializer, ReviewAddSerializer, ReviewUpdateSerializer
 
 # from permissions import IsOwner
