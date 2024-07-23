@@ -13,11 +13,17 @@ def update_recommendation_weights():
     pattern = "*RecommendationPreference_*"
     redis_keys = get_keys_with_pattern(pattern)
 
+    # ----------------------------------------------------------------
+    #  check redis keys for this case
+    # ----------------------------------------------------------------
+
     for redis_key in redis_keys:
+        # ----------------------------------------------------------------
+        #  clean redis key get data of books and recommendations
+        # ----------------------------------------------------------------
         cleaned_key = redis_key.decode("utf-8")
         key = cleaned_key.strip(":1:")
         user_id = key.strip("RecommendationPreference_")
-
         data = cache.get(key)
 
         if data:
@@ -27,6 +33,10 @@ def update_recommendation_weights():
 
             for service_name in data:
 
+                # ----------------------------------------------------------------
+                #  check the reviews that user had been added last days
+                # ----------------------------------------------------------------
+
                 list_book_ids = extract_values_list_dicts(data[service_name], "id")
                 with connection.cursor() as cursor:
                     cursor.execute(
@@ -34,7 +44,9 @@ def update_recommendation_weights():
                         [list_book_ids, user_id],
                     )
                     count = cursor.fetchone()[0]
-
+                # ----------------------------------------------------------------
+                #  total_count and percentage of each services
+                # ----------------------------------------------------------------
                 if service_name == "genre":
                     genre_count += count
                 elif service_name == "author":
@@ -49,6 +61,9 @@ def update_recommendation_weights():
                     author_weight = (author_count / total_count) * 100
                     similar_user_weight = (similar_user_count / total_count) * 100
 
+                    # ----------------------------------------------------------------
+                    #  check preference is existing and update or create it
+                    # ----------------------------------------------------------------
                     with connection.cursor() as cursor:
                         cursor.execute(
                             "SELECT COUNT(*) FROM book_userrecommendationpreference WHERE user_id = %s ;",
