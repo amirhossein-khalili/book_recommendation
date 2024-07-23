@@ -1,4 +1,3 @@
-# book/views.py
 from django.core.cache import cache
 from django.db import connection
 from rest_framework import generics, status
@@ -285,6 +284,23 @@ class BookSuggestView(APIView):
 
     def get(self, request, *args, **kwargs):
         user_id = request.user.id
+
+        # ----------------------------------------------------------------
+        # check if have not the review raise error
+        # ----------------------------------------------------------------
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM book_review WHERE user_id = %s ;",
+                [user_id],
+            )
+            count = cursor.fetchone()[0]
+
+        if count == 0:
+            return Response(
+                {"error": "there is not enough data about you"},
+                status=status.HTTP_200_OK,
+            )
+
         # ----------------------------------------------------------------
         # check items in the cache
         # ----------------------------------------------------------------
@@ -306,7 +322,14 @@ class BookSuggestView(APIView):
                 books_list = self.fetch_books_from_service(service_name, user_id)
                 recom_perf[service_name] = books_list
                 all_books = all_books + books_list
-
+        else:
+            for service_name in self.list_services:
+                num_items = int(preference[service_name] / 10)
+                books_list = self.fetch_books_from_service(
+                    service_name, user_id, num_items
+                )
+                recom_perf[service_name] = books_list
+                all_books = all_books + books_list
         # ----------------------------------------------------------------
         # save the data of suggestion list in the cache
         # ----------------------------------------------------------------
@@ -347,3 +370,14 @@ class BookSuggestView(APIView):
                 [user_id],
             )
             preference = cursor.fetchone()
+
+        if preference:
+            formatted_preference = {
+                "id": preference[0],
+                "genre": preference[1],
+                "author": preference[2],
+                "similar_user": preference[3],
+                "user_id": preference[4],
+            }
+            return formatted_preference
+        return None
