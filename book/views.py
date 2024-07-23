@@ -20,7 +20,51 @@ from .services import BookRecommendationServiceFactory
 
 class BookListView(APIView):
     """
-    This API will return a list of all books along with the user's rating and the average rating of all users.
+     This API view returns a list of all books along with the user's rating and the average rating of all users.
+
+    Permissions:
+    •  Only authenticated users can access this view.
+
+
+    Methods:
+    •  get: Handles GET requests to retrieve the list of books.
+
+
+    get(request):
+    Retrieves a list of all books with the following details:
+    •  Book ID
+
+    •  Title
+
+    •  Author
+
+    •  Genre
+
+    •  User's rating for the book (if available)
+
+    •  Average rating of the book from all users
+
+
+    Parameters:
+    •  request: The HTTP request object.
+
+
+    Returns:
+    •  Response: A JSON response containing the list of books with their details and ratings.
+
+    •  HTTP 200 OK: If the request is successful.
+
+
+    format_book(book):
+    Formats the book data into a dictionary.
+
+    Parameters:
+    •  book: A tuple containing the book details and ratings.
+
+
+    Returns:
+    •  dict: A dictionary with the formatted book details.
+
     """
 
     permission_classes = [IsAuthenticated]
@@ -59,6 +103,43 @@ class BookListView(APIView):
 
 
 class BookFilterView(APIView):
+    """
+    This API view filters books based on the specified genre.
+
+    Methods:
+    •  get: Handles GET requests to retrieve the list of books filtered by genre.
+
+
+    get(request, *args, **kwargs):
+    Retrieves a list of books that match the specified genre.
+
+    Parameters:
+    •  request: The HTTP request object.
+
+    •  args: Additional positional arguments.
+
+    •  kwargs: Additional keyword arguments, including:
+
+    •  genre: The genre to filter books by.
+
+
+    Returns:
+    •  Response: A JSON response containing the list of filtered books.
+
+    •  HTTP 200 OK: If the request is successful.
+
+
+    format_book(book):
+    Formats the book data into a dictionary.
+
+    Parameters:
+    •  book: A tuple containing the book details.
+
+
+    Returns:
+    •  dict: A dictionary with the formatted book details.
+
+    """
 
     def get(self, request, *args, **kwargs):
         genre = kwargs.get("genre")
@@ -82,8 +163,30 @@ class BookFilterView(APIView):
 
 class BookGenreListView(APIView):
     """
-    This API will give you a list of genres of the books.
+    This API view returns a list of distinct genres from the books.
+
+    Methods:
+    •  get: Handles GET requests to retrieve the list of genres.
+
+
+    get(request, *args, **kwargs):
+    Retrieves a list of distinct genres from the books.
+
+    Parameters:
+    •  request: The HTTP request object.
+
+    •  args: Additional positional arguments.
+
+    •  kwargs: Additional keyword arguments.
+
+
+    Returns:
+    •  Response: A JSON response containing the list of genres.
+
+    •  HTTP 200 OK: If the request is successful.
     """
+
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         with connection.cursor() as cursor:
@@ -97,6 +200,31 @@ class BookGenreListView(APIView):
 
 
 class BookDetailView(APIView):
+    """
+    This API view returns the details of a specific book based on its primary key (ID).
+
+    Methods:
+    •  get: Handles GET requests to retrieve the details of a book.
+
+
+    get(request, pk):
+    Retrieves the details of a book with the specified primary key (ID).
+
+    Parameters:
+    •  request: The HTTP request object.
+
+    •  pk: The primary key (ID) of the book to retrieve.
+
+
+    Returns:
+    •  Response: A JSON response containing the book details if found.
+
+    •  HTTP 200 OK: If the book is found.
+
+    •  HTTP 404 Not Found: If the book is not found.
+
+    """
+
     def get(self, request, pk):
         with connection.cursor() as cursor:
             cursor.execute("SELECT * FROM book_book WHERE id=%s", [pk])
@@ -114,6 +242,35 @@ class BookDetailView(APIView):
 
 
 class ReviewAddView(APIView):
+    """
+    This API view allows authenticated users to add a review for a book.
+
+    Attributes:
+    •  serializer_class: The serializer class used for validating the review data.
+
+    •  permission_classes: The permission classes that restrict access to authenticated users only.
+
+
+    Methods:
+    •  post: Handles POST requests to add a new review.
+
+
+    post(request):
+    Adds a new review for a book.
+
+    Parameters:
+    •  request: The HTTP request object containing the review data.
+
+
+    Returns:
+    •  Response: A JSON response with a success message if the review is added successfully.
+
+    •  HTTP 201 Created: If the review is added successfully.
+
+    •  HTTP 400 Bad Request: If the review data is invalid.
+
+    """
+
     serializer_class = ReviewAddSerializer
     permission_classes = [IsAuthenticated]
 
@@ -149,12 +306,18 @@ class ReviewUpdateView(APIView):
         rating = request.data.get("rating")
         requested_user_id = request.user.id
 
+        # ----------------------------------------------------------------
+        #  validate data with serializer
+        # ----------------------------------------------------------------
         data = request.data.copy()
         data["user"] = request.user.id
         ser_data = self.serializer_class(data=data)
 
         if ser_data.is_valid():
 
+            # ----------------------------------------------------------------
+            #  check exist
+            # ----------------------------------------------------------------
             user_review = self.get_user_review(pk)
             if user_review is None:
                 return Response(
@@ -162,11 +325,19 @@ class ReviewUpdateView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+            # ----------------------------------------------------------------
+            #  check user permission manual
+            # ----------------------------------------------------------------
+
             if user_review != requested_user_id:
                 return Response(
                     {"message": "You do not have access to change this review"},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+
+            # ----------------------------------------------------------------
+            #   update data
+            # ----------------------------------------------------------------
 
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -194,6 +365,35 @@ class ReviewUpdateView(APIView):
 
 
 class ReviewDeleteView(APIView):
+    """
+    This API view allows authenticated users to delete their review for a book.
+
+    Attributes:
+    •  permission_classes: The permission classes that restrict access to authenticated users only.
+
+
+    Methods:
+    •  delete: Handles DELETE requests to delete an existing review.
+
+    •  get_user_review: Retrieves the user ID of the review's author.
+
+
+    delete(request, *args, **kwargs):
+    Deletes an existing review for a book.
+
+    Parameters:
+    •  request: The HTTP request object.
+
+    •  args: Additional positional arguments.
+
+    •  kwargs: Additional keyword arguments, including:
+
+    •  pk: The primary key (ID) of the review to delete.
+
+
+    Returns:
+    •  Response: A JSON response with a success message if the review is deleted...
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -242,7 +442,41 @@ class ReviewDeleteView(APIView):
 
 class ReviewListView(APIView):
     """
-    This API will return a list of all reviews belong to the user.
+    This API view returns a list of all reviews belonging to the authenticated user.
+
+    Attributes:
+    •  permission_classes: The permission classes that restrict access to authenticated users only.
+
+
+    Methods:
+    •  get: Handles GET requests to retrieve the list of reviews.
+
+    •  format_review: Formats the review data into a dictionary.
+
+
+    get(request):
+    Retrieves a list of all reviews belonging to the authenticated user.
+
+    Parameters:
+    •  request: The HTTP request object.
+
+
+    Returns:
+    •  Response: A JSON response containing the list of reviews.
+
+    •  HTTP 200 OK: If the request is successful.
+
+
+    format_review(review):
+    Formats the review data into a dictionary.
+
+    Parameters:
+    •  review: A tuple containing the review details.
+
+
+    Returns:
+    •  dict: A dictionary with the formatted review details.
+
     """
 
     permission_classes = [IsAuthenticated]
@@ -277,6 +511,98 @@ class ReviewListView(APIView):
 
 
 class BookSuggestView(APIView):
+    """
+    This API view provides book suggestions for authenticated users based on their preferences and past reviews.
+
+    Attributes:
+    •  permission_classes: The permission classes that restrict access to authenticated users only.
+
+    •  serializer_class: The serializer class used for validating the review data.
+
+    •  list_services: A list of recommendation services used to fetch book suggestions.
+
+
+    Methods:
+    •  get: Handles GET requests to retrieve book suggestions.
+
+    •  save_list_books: Saves the list of suggested books in the cache.
+
+    •  get_list_books_from_cache: Retrieves the list of suggested books from the cache.
+
+    •  fetch_books_from_service: Fetches book suggestions from a specified recommendation service.
+
+    •  get_user_preference: Retrieves the user's preference data from the database.
+
+
+    get(request, *args, **kwargs):
+    Retrieves book suggestions for the authenticated user.
+
+    Parameters:
+    •  request: The HTTP request object.
+
+    •  args: Additional positional arguments.
+
+    •  kwargs: Additional keyword arguments.
+
+
+    Returns:
+    •  Response: A JSON response containing the list of suggested books.
+
+    •  HTTP 200 OK: If the request is successful.
+
+    •  HTTP 200 OK: If there is not enough data about the user to provide suggestions.
+
+
+    save_list_books(recom_perf, user_id):
+    Saves the list of suggested books in the cache.
+
+    Parameters:
+    •  recom_perf: A dictionary containing the recommended books.
+
+    •  user_id: The ID of the user.
+
+
+    get_list_books_from_cache(user_id):
+    Retrieves the list of suggested books from the cache.
+
+    Parameters:
+    •  user_id: The ID of the user.
+
+
+    Returns:
+    •  list: A list of suggested books if found in the cache.
+
+    •  None: If no suggested books are found in the cache.
+
+
+    fetch_books_from_service(service_name, user_id, num_items=10):
+    Fetches book suggestions from a specified recommendation service.
+
+    Parameters:
+    •  service_name: The name of the recommendation service.
+
+    •  user_id: The ID of the user.
+
+    •  num_items: The number of book suggestions to fetch (default is 10).
+
+
+    Returns:
+    •  list: A list of recommended books.
+
+
+    get_user_preference(user_id):
+    Retrieves the user's preference data from the database.
+
+    Parameters:
+    •  user_id: The ID of the user.
+
+
+    Returns:
+    •  dict: A dictionary containing the user's preference data if found.
+
+    •  None: If no preference data is found.
+
+    """
 
     permission_classes = [IsAuthenticated]
     serializer_class = ReviewAddSerializer
