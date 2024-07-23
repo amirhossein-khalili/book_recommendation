@@ -5,8 +5,6 @@ from django_redis import get_redis_connection
 
 from utils import get_keys_with_pattern
 
-# from .models import Recommendation, UserBookRating, UserRecommendationPreference
-
 
 @shared_task
 def update_recommendation_weights():
